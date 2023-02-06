@@ -22,6 +22,7 @@
 
 
 function mk
+#DESCRIPTION: make a new book
 {
    name=$1
 
@@ -34,10 +35,10 @@ function mk
       return -1
    fi
 
-
 }
 
 function update
+#DESCRIPTION: update the ope framework
 {
     arg=$1
     if [[ $arg = '-h' ]]; then
@@ -47,7 +48,8 @@ function update
     
 }
 
-function build 
+function build
+#DESCRIPTION: build the book
 {
     arg=$1
     if [[ -z $arg || $arg = '-h' ]]; then
@@ -57,23 +59,39 @@ function build
 }
 
 function pub
+#DESCRIPTION: publish the book
 {
     arg=$1
     if [[ -z $arg || $arg = '-h' ]]; then
-	echo "USAGE: pub"
-	return -1
+    echo "USAGE: pub"
+    return -1
     fi    
+}
+
+print_func_page()
+{
+    func_names=($(grep '^function' $0 | awk '{print $2}'))
+    grep '^#DESCRIPTION' $0 | awk -F: '{print $2}' | while read line ; do echo "  ${func_names[$i]}, $line"; i=$((i+1)); done | column -t -s,
 }
 
 usage()
 {
-    echo "USAGE:  ${0##*/} func args" >&2
-    grep '^function' $0
+    echo 
+    echo "Usage:  ${0##*/} FUNCTION {ARGS} " >&2
+    echo
+    echo "A command-line tool for building open source infrastructures using ope framework"
+    echo 
+    echo "Functions: "
+    print_func_page
+    echo
     echo "for each func use '-h' to print its usage: eg. ${0##*/} dump -h"
     echo "will print the usage for the dump command"
 }
 
-processargs()
+
+
+
+process_args()
 {
   if [[ $# == 0 || $1 = '-h' ]]
   then
@@ -84,7 +102,7 @@ processargs()
   dofunc=$1
 }
 
-processargs "$@"
+process_args "$@"
 shift
 
 $dofunc "$@"
