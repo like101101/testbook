@@ -20,21 +20,60 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+# --------- Script begins here -------------
+
+set -e
+
+# Informations
+git_username=$(git config --global user.name)
+git_email=$(git config --global user.email)
+
+# Script Configuration
+HEADER="[OPE] "
+# Color Configuration
+Color_Off='\033[0m'       # Text Reset
+Black='\033[0;30m'        # Black
+Red='\033[0;31m'          # Red
+Green='\033[0;32m'        # Green
+Yellow='\033[0;33m'       # Yellow
+Blue='\033[0;34m'         # Blue
+Purple='\033[0;35m'       # Purple
+Cyan='\033[0;36m'         # Cyan
+White='\033[0;37m'        # White
+Grey='\033[0;37m'         # Grey
+
 
 function mk
 #DESCRIPTION: make a new book
 {
-   name=$1
+    name=$1
 
-   if [[ -z $name || $name = '-h' ]]; then
-      echo "USAGE: mk <bookName>"
-      echo "   makes a template book of the name specified"
-      echo "   eg. ope mk MyBook"
-      echo "   will create a new local repository seeded from the ope "
-      echo "   template.  See the ope gettings started doc for more info."
-      return -1
-   fi
+    if [[ -z $name || $name = '-h' ]]; then
+        echo "Usage:  ${0##*/} mk <bookName>"
+        echo "   makes a template book of the name specified"
+        echo "   eg. ope mk MyBook"
+        echo "   will create a new local repository seeded from the ope "
+        echo "   template.  See the ope gettings started doc for more info."
+        return -1
+    fi
 
+    if [[ -d $name ]]; then
+        printf "$HEADER${Red}ERROR: Book $name already exists${Color_Off}\n"
+        return -1
+    fi
+
+    printf "$HEADER${Green}Seeding from OPE content template${Color_Off}\n"
+
+    mkdir -p $name
+    cd $name
+    git init | while read line; do printf "     ${Grey}$line${Color_Off}\r"; done
+    git remote add origin git@github.com:OPEFFORT/ope.git | while read line; do printf "${Grey}$line${Color_Off}\r"; done
+    git pull origin coursecontenttemplate 2>&1 | while read line; do printf "${Grey}$line${Color_Off}\r"; done
+    
+    printf "                                                                                      \r"
+    printf "$HEADER${Green}OPE book has successfully created ${Color_Off}\n"
+
+    
 }
 
 function update
@@ -42,7 +81,7 @@ function update
 {
     arg=$1
     if [[ $arg = '-h' ]]; then
-	echo "USAGE: update"
+	echo "Usage:  ${0##*/} update"
 	return -1
     fi
     
@@ -53,7 +92,7 @@ function build
 {
     arg=$1
     if [[ -z $arg || $arg = '-h' ]]; then
-	echo "USAGE: build"
+	echo "Usage: build"
 	return -1
     fi    
 }
@@ -63,7 +102,7 @@ function pub
 {
     arg=$1
     if [[ -z $arg || $arg = '-h' ]]; then
-    echo "USAGE: pub"
+    echo "Usage: pub"
     return -1
     fi    
 }
@@ -71,10 +110,10 @@ function pub
 print_func_page()
 {
     func_names=($(grep '^function' $0 | awk '{print $2}'))
-    grep '^#DESCRIPTION' $0 | awk -F: '{print $2}' | while read line ; do echo "  ${func_names[$i]}, $line"; i=$((i+1)); done | column -t -s,
+    grep '^#DESCRIPTION' $0 | awk -F: '{print $2}' | while read line ; do printf "  ${Blue}${func_names[$i]}${Color_Off}, $line\n"; i=$((i+1)); done | column -t -s,
 }
 
-usage()
+Usage()
 {
     echo 
     echo "Usage:  ${0##*/} FUNCTION {ARGS} " >&2
@@ -84,8 +123,8 @@ usage()
     echo "Functions: "
     print_func_page
     echo
-    echo "for each func use '-h' to print its usage: eg. ${0##*/} dump -h"
-    echo "will print the usage for the dump command"
+    echo "for each func use '-h' to print its Usage: eg. ${0##*/} dump -h"
+    echo "will print the Usage for the dump command"
 }
 
 
@@ -95,7 +134,7 @@ process_args()
 {
   if [[ $# == 0 || $1 = '-h' ]]
   then
-    usage
+    Usage
     exit -1
   fi
 
