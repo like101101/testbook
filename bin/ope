@@ -20,16 +20,39 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+# Services information
+# --------------------
+
+# REPO Services
+REPO_CMD="git"
+INIT="init"
+REMOTE_ADD="remote add"
+CLONE="clone"
+PULL="pull"
+PUSH="push"
+PUSH_FIRST="push -f -u"
+SWITCH_BRANCH="checkout"
+CREATE_BRANCH="checkout -b"
+IGNORE_FILE=".gitignore"
+RENAME_BRANCH="branch -m"
+FETCH="fetch"
+REPO_URL="git@github.com:\${ORG_NAME}/\${REPO_NAME}.git"
+
+# email services
+EMAIL_SERVICE="gmail"
+
+# OPE INFORMATION
+# --------------------
+OPE_ORG_NAME="like101101"
+OPE_REPO_NAME="ope"
+OPE_CONFIG_DIR="opeconfig"
+UPSTREAM_BRANCHES=("main" "coursecontenttemplate" "Documentation")
+
 # --------- Script begins here -------------
-
-set -e
-
-# Informations
-git_username=$(git config --global user.name)
-git_email=$(git config --global user.email)
 
 # Script Configuration
 HEADER="[OPE] "
+VERBOSE=0
 # Color Configuration
 Color_Off='\033[0m'       # Text Reset
 Black='\033[0;30m'        # Black
@@ -41,39 +64,122 @@ Purple='\033[0;35m'       # Purple
 Cyan='\033[0;36m'         # Cyan
 White='\033[0;37m'        # White
 Grey='\033[0;37m'         # Grey
+BBlack='\033[1;30m'       # Bold Black
 
+# Helper functions
+rolling_output () {
+    if [[ $VERBOSE -eq 0 ]]; then
+        cat <&0 | while read line; do echo -ne "\033[2K\r"; printf "     ${Grey}$line${Color_Off}\r"; done
+    else
+        cat <&0
+    fi
+}
 
-function mk
-#DESCRIPTION: make a new book
+function create
+#DESCRIPTION: create a new book organization from the ope template
 {
     name=$1
 
+    # Help message
     if [[ -z $name || $name = '-h' ]]; then
-        echo "Usage:  ${0##*/} mk <bookName>"
-        echo "   makes a template book of the name specified"
-        echo "   eg. ope mk MyBook"
+        echo "Usage:  ${0##*/} create <bookName>"
+        echo "   create an organization using ope template of the name specified"
+        echo "   eg. ope create MyBook"
         echo "   will create a new local repository seeded from the ope "
         echo "   template.  See the ope gettings started doc for more info."
         return -1
     fi
 
+    # Check if the organization already exists locally
     if [[ -d $name ]]; then
-        printf "$HEADER${Red}ERROR: Book $name already exists${Color_Off}\n"
+        printf "$HEADER${Red}ERROR: Organization $name already exists${Color_Off}\n"
         return -1
     fi
 
-    printf "$HEADER${Green}Seeding from OPE content template${Color_Off}\n"
-
+    # Create the organization
     mkdir -p $name
-    cd $name
-    git init | while read line; do printf "     ${Grey}$line${Color_Off}\r"; done
-    git remote add origin git@github.com:OPEFFORT/ope.git | while read line; do printf "${Grey}$line${Color_Off}\r"; done
-    git pull origin coursecontenttemplate 2>&1 | while read line; do printf "${Grey}$line${Color_Off}\r"; done
-    
-    printf "                                                                                      \r"
-    printf "$HEADER${Green}OPE book has successfully created ${Color_Off}\n"
+    # Creating configuration
+    printf "$HEADER${Cyan}Creating OPE configurations${Color_Off}\n"
+    touch $IGNORE_FILE
+    echo $OPE_CONFIG_DIR >> $IGNORE_FILE
+    mkdir -p $OPE_CONFIG_DIR
 
+    cd $name
     
+    read -r -p "    Enter the email of the ${name} orginzation: " user_input
+    if [ -z "$user_input" ]; then
+        echo "${name}@${EMAIL_SERVICE}.com" > ../$OPE_CONFIG_DIR/email
+        printf "    The email was set to default value: ${BBlack}${name}@${EMAIL_SERVICE}.com${Color_Off}\n"
+    else
+        echo $user_input > ../$OPE_CONFIG_DIR/email
+        printf "    The email was set to: ${BBlack}${user_input}${Color_Off}\n"
+    fi
+
+
+    read -r -p "    Enter the source URL of the ${name} orginzation: " user_input
+    if [ -z "$user_input" ]; then
+        ORG_NAME="${name}"
+        REPO_NAME="${name}"
+        eval "NEW_REPO_URL=$REPO_URL"
+    else
+        NEW_REPO_URL=$user_input  
+    fi
+    echo $NEW_REPO_URL > ../$OPE_CONFIG_DIR/source_url
+    printf "    The ${name} source URL was set to: ${BBlack}${NEW_REPO_URL}${Color_Off}\n"
+
+    # Creating the organization
+    while true; do
+        read -r -p "    Are you building on top of an existing OPE book? [Y/n]: " user_input
+        if [ -z "$user_input" ]; then
+            user_input="n"
+            break;
+        elif [ "$user_input" == "n" ]; then
+            break;
+        elif [ "$user_input" == "Y" ]; then
+            break;
+        else
+            printf "    ${Red}ERROR: Invalid input. Please enter Y/n ${Color_Off}\n"
+        fi
+    done
+
+    if [ "$user_input" == "n" ]; then
+        printf "$HEADER${Cyan}Seeding from OPE content template${Color_Off}\n"
+        ${REPO_CMD} ${INIT} | while read line; do printf "     ${Grey}$line${Color_Off}\r"; done && 
+        ORG_NAME="${OPE_ORG_NAME}"
+        REPO_NAME="${OPE_REPO_NAME}"
+        eval "OPE_REPO_URL=$REPO_URL"
+    else
+        printf "$HEADER${Cyan}Seeding from existing book content template${Color_Off}\n"
+        while true; do
+            read -r -p "    Enter the OPE source URL of the existing book: " user_input
+            if [ -z "$user_input" ]; then
+                printf "    ${Red}ERROR: Invalid input. Please try again${Color_Off}\n"
+            else
+                break;
+            fi
+        done
+        ${REPO_CMD} ${INIT} | rolling_output
+        OPE_REPO_URL=$user_input
+    fi
+
+    # Adding the remotes
+    ${REPO_CMD} ${REMOTE_ADD} upstream ${OPE_REPO_URL} | rolling_output #0<&0
+    ${REPO_CMD} ${REMOTE_ADD} origin ${NEW_REPO_URL} | rolling_output #0<&0
+
+    for branch in "${UPSTREAM_BRANCHES[@]}"; do
+        ${REPO_CMD} ${FETCH} upstream ${branch} 2>&1  | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done 
+        ${REPO_CMD} ${SWITCH_BRANCH} ${branch}  2>&1  | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
+        ${REPO_CMD} ${RENAME_BRANCH} ${branch}-source  2>&1  | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
+        ${REPO_CMD} ${CREATE_BRANCH} ${branch}  2>&1  | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
+        ${REPO_CMD} ${PUSH_FIRST} origin ${branch} 2>&1 | rolling_output #0<&0
+    done
+
+    ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[0]}  2>&1  | rolling_output
+    echo -ne "\033[2K\r"
+    
+    mv ../$IGNORE_FILE .
+    mv ../$OPE_CONFIG_DIR .
+    printf "$HEADER${Green}OPE book organization has been successfully created ${Color_Off}\n"    
 }
 
 function update
@@ -140,6 +246,9 @@ process_args()
 
   dofunc=$1
 }
+
+set -e
+set -o pipefail
 
 process_args "$@"
 shift
