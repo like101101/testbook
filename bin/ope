@@ -36,6 +36,8 @@ CREATE_BRANCH="checkout -b"
 IGNORE_FILE=".gitignore"
 RENAME_BRANCH="branch -m"
 FETCH="fetch"
+ADD="add"
+COMMIT="commit -m"
 REPO_URL="git@github.com:\${ORG_NAME}/\${REPO_NAME}.git"
 
 # email services
@@ -174,11 +176,14 @@ function create
         ${REPO_CMD} ${PUSH_FIRST} origin ${branch} 2>&1 | rolling_output #0<&0
     done
 
-    ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[0]}  2>&1  | rolling_output
+    ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[0]}  2>&1  # | rolling_output
     echo -ne "\033[2K\r"
-    
+    printf "$HEADER${Cyan}Initilal Commit to ${name} repository.${Color_Off}\n"
     mv ../$IGNORE_FILE .
     mv ../$OPE_CONFIG_DIR .
+    ${REPO_CMD} ${ADD} . #2>&1 | rolling_output
+    ${REPO_CMD} ${COMMIT} "Initial commit from the ope command line tool" 2>&1 #| rolling_output
+    ${REPO_CMD} ${PUSH} 2>&1 #| rolling_output
     printf "$HEADER${Green}OPE book organization has been successfully created ${Color_Off}\n"    
 }
 
@@ -198,9 +203,20 @@ function build
 {
     arg=$1
     if [[ -z $arg || $arg = '-h' ]]; then
-	echo "Usage: build"
-	return -1
-    fi    
+	    echo "Usage: ope build <book_name>"
+	    return -1
+    fi
+
+    if [[ ! -d $arg ]]; then
+        printf "$HEADER${Red}ERROR: Organization $args does not exist.${Color_Off}\n"
+        return -1
+    fi
+
+    cd $arg
+    printf "$HEADER${Cyan}Building the book${Color_Off}\n"
+    ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[1]} 2>&1 | rolling_output
+    make build 2>&1 | rolling_output
+    printf "$HEADER${Green}Book has been successfully built ${Color_Off}\n"
 }
 
 function pub
