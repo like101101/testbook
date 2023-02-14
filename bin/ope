@@ -215,7 +215,7 @@ function build
     cd $arg
     printf "$HEADER${Cyan}Building the book${Color_Off}\n"
     ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[1]} 2>&1 | rolling_output
-    make build 2>&1 | rolling_output
+    make build
     printf "$HEADER${Green}Book has been successfully built ${Color_Off}\n"
 }
 
