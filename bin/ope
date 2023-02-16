@@ -38,7 +38,10 @@ RENAME_BRANCH="branch -m"
 FETCH="fetch"
 ADD="add"
 COMMIT="commit -m"
+CURRENT_BRANCH="branch --show-current"
+REBASE="rebase"
 REPO_URL="git@github.com:\${ORG_NAME}/\${REPO_NAME}.git"
+
 
 # email services
 EMAIL_SERVICE="gmail"
@@ -67,11 +70,14 @@ Cyan='\033[0;36m'         # Cyan
 White='\033[0;37m'        # White
 Grey='\033[0;37m'         # Grey
 BBlack='\033[1;30m'       # Bold Black
+BCyan='\033[1;36m'        # Bold Cyan
+BGreen='\033[1;32m'
 
 # Helper functions
 rolling_output () {
+    input=$(cat <&0 | tr '\r' '\n')
     if [[ $VERBOSE -eq 0 ]]; then
-        cat <&0 | while read line; do echo -ne "\033[2K\r"; printf "     ${Grey}$line${Color_Off}\r"; done
+        echo $input | while read line; do echo -ne "\033[2K\r"; printf "     ${Grey}$line${Color_Off}\r"; done
     else
         cat <&0
     fi
@@ -160,48 +166,68 @@ function create
                 break;
             fi
         done
-        ${REPO_CMD} ${INIT} | rolling_output
+        ${REPO_CMD} ${INIT} # | rolling_output
         OPE_REPO_URL=$user_input
     fi
 
     # Adding the remotes
-    ${REPO_CMD} ${REMOTE_ADD} upstream ${OPE_REPO_URL} | rolling_output #0<&0
-    ${REPO_CMD} ${REMOTE_ADD} origin ${NEW_REPO_URL} | rolling_output #0<&0
+    ${REPO_CMD} ${REMOTE_ADD} upstream ${OPE_REPO_URL} # | rolling_output #0<&0
+    ${REPO_CMD} ${REMOTE_ADD} origin ${NEW_REPO_URL} # | rolling_output #0<&0
 
     for branch in "${UPSTREAM_BRANCHES[@]}"; do
-        ${REPO_CMD} ${FETCH} upstream ${branch} 2>&1  | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done 
-        ${REPO_CMD} ${SWITCH_BRANCH} ${branch}  2>&1  | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
-        ${REPO_CMD} ${RENAME_BRANCH} ${branch}-source  2>&1  | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
-        ${REPO_CMD} ${CREATE_BRANCH} ${branch}  2>&1  | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
-        ${REPO_CMD} ${PUSH_FIRST} origin ${branch} 2>&1 | rolling_output #0<&0
+        ${REPO_CMD} ${FETCH} upstream ${branch} 2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done 
+        ${REPO_CMD} ${SWITCH_BRANCH} ${branch}  2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
+        ${REPO_CMD} ${RENAME_BRANCH} ${branch}-source  2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
+        ${REPO_CMD} ${CREATE_BRANCH} ${branch}  2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
+        ${REPO_CMD} ${PUSH_FIRST} origin ${branch} 2>&1 # | rolling_output #0<&0
     done
 
-    ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[0]}  2>&1  # | rolling_output
+    ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[0]}  2>&1  # # | rolling_output
     echo -ne "\033[2K\r"
     printf "$HEADER${Cyan}Initilal Commit to ${name} repository.${Color_Off}\n"
     mv ../$IGNORE_FILE .
     mv ../$OPE_CONFIG_DIR .
-    ${REPO_CMD} ${ADD} . #2>&1 | rolling_output
-    ${REPO_CMD} ${COMMIT} "Initial commit from the ope command line tool" 2>&1 #| rolling_output
-    ${REPO_CMD} ${PUSH} 2>&1 #| rolling_output
+    ${REPO_CMD} ${ADD} . #2>&1 # | rolling_output
+    ${REPO_CMD} ${COMMIT} "Initial commit from the ope command line tool" 2>&1 ## | rolling_output
+    ${REPO_CMD} ${PUSH} 2>&1 ## | rolling_output
     printf "$HEADER${Green}OPE book organization has been successfully created ${Color_Off}\n"    
 }
 
 function update
 #DESCRIPTION: update the ope framework
 {
-    arg=$1
-    if [[ $arg = '-h' ]]; then
-	echo "Usage:  ${0##*/} update"
+    name=$1
+    if [[ -z $name || $name = '-h' ]]; then
+	    echo "Usage:  ${0##*/} update <book_name> "
+        echo "  update the book repository with the latest changes from the OPE framework"
+        echo "  note that this will be a rebase operation based on the branch"
+        echo "  that you are currently on"
+        echo "  make sure you are on the right branch and save all your changes"
 	return -1
     fi
-    
+
+    if [[ ! -d $name ]]; then
+        printf "$HEADER${Red}ERROR: Organization $name does not exist.${Color_Off}\n"
+        return -1
+    fi
+
+    cd $name
+    current_branch=$(${REPO_CMD} ${CURRENT_BRANCH})
+    printf "$HEADER${Cyan}Updating the book repository on ${Color_Off}${BCyan}${current_branch}${Color_Off}\n"
+    ${REPO_CMD} ${SWITCH_BRANCH} ${current_branch}-source
+    ${REPO_CMD} ${PULL} upstream ${current_branch}
+    ${REPO_CMD} ${SWITCH_BRANCH} ${current_branch}
+    ${REPO_CMD} ${REBASE} ${current_branch}-source
+    printf "$HEADER${BGreen}${current_branch}${Color_Off}${Green} has been successfully updated ${Color_Off}\n"
+
+
 }
 
 function build
 #DESCRIPTION: build the book
 {
     arg=$1
+    name=$2
     if [[ -z $arg || $arg = '-h' ]]; then
 	    echo "Usage: ope build <book_name>"
 	    return -1
@@ -214,7 +240,7 @@ function build
 
     cd $arg
     printf "$HEADER${Cyan}Building the book${Color_Off}\n"
-    ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[1]} 2>&1 | rolling_output
+    ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[1]}
     make build
     printf "$HEADER${Green}Book has been successfully built ${Color_Off}\n"
 }
