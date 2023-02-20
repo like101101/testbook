@@ -27,6 +27,7 @@
 REPO_CMD="git"
 INIT="init"
 REMOTE_ADD="remote add"
+CHECK_REMOTES="remote -v"
 CLONE="clone"
 PULL="pull"
 PUSH="push"
@@ -41,6 +42,7 @@ COMMIT="commit -m"
 CURRENT_BRANCH="branch --show-current"
 REBASE="rebase"
 REPO_URL="git@github.com:\${ORG_NAME}/\${REPO_NAME}.git"
+REPO_SERVICE_DIR=".git"
 
 
 # email services
@@ -80,6 +82,23 @@ rolling_output () {
         echo $input | while read line; do echo -ne "\033[2K\r"; printf "     ${Grey}$line${Color_Off}\r"; done
     else
         cat <&0
+    fi
+}
+
+verify_repo (){
+    
+    if [[ ! -d $REPO_SERVICE_DIR ]]; then
+        printf "$HEADER${Red}ERROR: Not a valid ${REPO_SERVICE} repository${Color_Off}\n"
+        return -1
+    fi
+    
+    output=$(${REPO_CMD} ${CHECK_REMOTES})
+
+    if echo "$output" | grep -q "ope-upstream"; then
+        printf "$HEADER${Cyan}This is a valid OPE repository${Color_Off}\n"
+    else
+        printf "$HEADER${Red}ERROR: Not a valid OPE repository${Color_Off}\n"
+        return -1
     fi
 }
 
@@ -171,11 +190,11 @@ function create
     fi
 
     # Adding the remotes
-    ${REPO_CMD} ${REMOTE_ADD} upstream ${OPE_REPO_URL} # | rolling_output #0<&0
+    ${REPO_CMD} ${REMOTE_ADD} ope-upstream ${OPE_REPO_URL} # | rolling_output #0<&0
     ${REPO_CMD} ${REMOTE_ADD} origin ${NEW_REPO_URL} # | rolling_output #0<&0
 
     for branch in "${UPSTREAM_BRANCHES[@]}"; do
-        ${REPO_CMD} ${FETCH} upstream ${branch} 2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done 
+        ${REPO_CMD} ${FETCH} ope-upstream ${branch} 2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done 
         ${REPO_CMD} ${SWITCH_BRANCH} ${branch}  2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
         ${REPO_CMD} ${RENAME_BRANCH} ${branch}-source  2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
         ${REPO_CMD} ${CREATE_BRANCH} ${branch}  2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
@@ -196,26 +215,12 @@ function create
 function update
 #DESCRIPTION: update the ope framework
 {
-    name=$1
-    if [[ -z $name || $name = '-h' ]]; then
-	    echo "Usage:  ${0##*/} update <book_name> "
-        echo "  update the book repository with the latest changes from the OPE framework"
-        echo "  note that this will be a rebase operation based on the branch"
-        echo "  that you are currently on"
-        echo "  make sure you are on the right branch and save all your changes"
-	return -1
-    fi
-
-    if [[ ! -d $name ]]; then
-        printf "$HEADER${Red}ERROR: Organization $name does not exist.${Color_Off}\n"
-        return -1
-    fi
-
-    cd $name
+    verify_repo
+    
     current_branch=$(${REPO_CMD} ${CURRENT_BRANCH})
     printf "$HEADER${Cyan}Updating the book repository on ${Color_Off}${BCyan}${current_branch}${Color_Off}\n"
     ${REPO_CMD} ${SWITCH_BRANCH} ${current_branch}-source
-    ${REPO_CMD} ${PULL} upstream ${current_branch}
+    ${REPO_CMD} ${PULL} ope-upstream ${current_branch}
     ${REPO_CMD} ${SWITCH_BRANCH} ${current_branch}
     ${REPO_CMD} ${REBASE} ${current_branch}-source
     printf "$HEADER${BGreen}${current_branch}${Color_Off}${Green} has been successfully updated ${Color_Off}\n"
@@ -226,19 +231,7 @@ function update
 function build
 #DESCRIPTION: build the book
 {
-    arg=$1
-    name=$2
-    if [[ -z $arg || $arg = '-h' ]]; then
-	    echo "Usage: ope build <book_name>"
-	    return -1
-    fi
-
-    if [[ ! -d $arg ]]; then
-        printf "$HEADER${Red}ERROR: Organization $args does not exist.${Color_Off}\n"
-        return -1
-    fi
-
-    cd $arg
+    verify_repo
     printf "$HEADER${Cyan}Building the book${Color_Off}\n"
     ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[1]}
     make build
