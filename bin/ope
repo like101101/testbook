@@ -50,7 +50,7 @@ EMAIL_SERVICE="gmail"
 
 # OPE INFORMATION
 # --------------------
-OPE_ORG_NAME="like101101"
+OPE_ORG_NAME="OPEFFORT"
 OPE_REPO_NAME="ope"
 OPE_CONFIG_DIR="opeconfig"
 UPSTREAM_BRANCHES=("main" "coursecontenttemplate" "Documentation")
@@ -95,7 +95,8 @@ verify_repo (){
     output=$(${REPO_CMD} ${CHECK_REMOTES})
 
     if echo "$output" | grep -q "ope-upstream"; then
-        printf "$HEADER${Cyan}This is a valid OPE repository${Color_Off}\n"
+        #printf "$HEADER${Cyan}This is a valid OPE repository${Color_Off}\n"
+        break
     else
         printf "$HEADER${Red}ERROR: Not a valid OPE repository${Color_Off}\n"
         return -1
@@ -127,18 +128,18 @@ function create
     mkdir -p $name
     # Creating configuration
     printf "$HEADER${Cyan}Creating OPE configurations${Color_Off}\n"
-    touch $IGNORE_FILE
-    echo $OPE_CONFIG_DIR >> $IGNORE_FILE
-    mkdir -p $OPE_CONFIG_DIR
+    #touch $IGNORE_FILE
+    #echo $OPE_CONFIG_DIR >> $IGNORE_FILE
+    #mkdir -p $OPE_CONFIG_DIR
 
     cd $name
     
     read -r -p "    Enter the email of the ${name} orginzation: " user_input
     if [ -z "$user_input" ]; then
-        echo "${name}@${EMAIL_SERVICE}.com" > ../$OPE_CONFIG_DIR/email
+        #echo "${name}@${EMAIL_SERVICE}.com" > ../$OPE_CONFIG_DIR/email
         printf "    The email was set to default value: ${BBlack}${name}@${EMAIL_SERVICE}.com${Color_Off}\n"
     else
-        echo $user_input > ../$OPE_CONFIG_DIR/email
+        #echo $user_input > ../$OPE_CONFIG_DIR/email
         printf "    The email was set to: ${BBlack}${user_input}${Color_Off}\n"
     fi
 
@@ -151,7 +152,7 @@ function create
     else
         NEW_REPO_URL=$user_input  
     fi
-    echo $NEW_REPO_URL > ../$OPE_CONFIG_DIR/source_url
+    #echo $NEW_REPO_URL > ../$OPE_CONFIG_DIR/source_url
     printf "    The ${name} source URL was set to: ${BBlack}${NEW_REPO_URL}${Color_Off}\n"
 
     # Creating the organization
@@ -232,20 +233,20 @@ function build
 #DESCRIPTION: build the book
 {
     verify_repo
-    printf "$HEADER${Cyan}Building the book${Color_Off}\n"
-    ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[1]}
+    current_branch=$(${REPO_CMD} ${CURRENT_BRANCH})
+    printf "$HEADER${Cyan}Building the on ${Color_Off}${BCyan}${current_branch}${Color_Off}\n"
     make build
-    printf "$HEADER${Green}Book has been successfully built ${Color_Off}\n"
+    printf "$HEADER${Green}${current_branch} has been successfully built ${Color_Off}\n"
 }
 
 function pub
 #DESCRIPTION: publish the book
 {
-    arg=$1
-    if [[ -z $arg || $arg = '-h' ]]; then
-    echo "Usage: pub"
-    return -1
-    fi    
+    verify_repo
+    current_branch=$(${REPO_CMD} ${CURRENT_BRANCH})
+    printf "$HEADER${Cyan}Publishing the on ${Color_Off}${BCyan}${current_branch}${Color_Off}\n"
+    make build
+    printf "$HEADER${Green}${current_branch} has been successfully published ${Color_Off}\n"
 }
 
 print_func_page()
