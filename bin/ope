@@ -88,7 +88,7 @@ rolling_output () {
 verify_repo (){
     
     if [[ ! -d $REPO_SERVICE_DIR ]]; then
-        printf "$HEADER${Red}ERROR: Not a valid ${REPO_SERVICE} repository${Color_Off}\n"
+        printf "$HEADER${Red}ERROR: Not a valid ${REPO_CMD} repository${Color_Off}\n"
         return -1
     fi
     
@@ -101,6 +101,54 @@ verify_repo (){
         printf "$HEADER${Red}ERROR: Not a valid OPE repository${Color_Off}\n"
         return -1
     fi
+}
+
+function clone
+#DESCRIPTION: clone the OPE repository for development
+{
+    url=$1
+
+    # Help message
+    if [[ -z $url || $url = '-h' ]]; then
+        echo "Usage:  ${0##*/} clone <url>"
+        echo "   will clone the OPE repository and setup the branches for development"
+        echo "   See the ope gettings started doc for more info."
+        return -1
+    fi
+
+    basename=$(basename $url)
+    repo=${basename%.*}
+
+    # Check if the organization already exists locally
+    if [[ -d $repo ]]; then
+        printf "$HEADER${Red}ERROR: Repository $repo already exists${Color_Off}\n"
+        return -1
+    fi
+
+    ORG_NAME="${OPE_ORG_NAME}"
+    REPO_NAME="${OPE_REPO_NAME}"
+    eval "OPE_REPO_URL=$REPO_URL"
+    echo $OPE_REPO_URL
+
+    printf "$HEADER${Cyan}Creating OPE repository locally${Color_Off}\n"
+    mkdir -p ${repo}
+    cd ${repo}
+    printf "$HEADER${Cyan}Linking ope-upstream branches${Color_Off}\n"
+
+    ${REPO_CMD} ${INIT}
+    # Adding the remotes
+    ${REPO_CMD} ${REMOTE_ADD} ope-upstream ${OPE_REPO_URL} # | rolling_output #0<&0
+    ${REPO_CMD} ${REMOTE_ADD} origin ${url} # | rolling_output #0<&0
+
+    for branch in "${UPSTREAM_BRANCHES[@]}"; do
+        ${REPO_CMD} ${FETCH} ope-upstream ${branch} 2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done 
+        ${REPO_CMD} ${FETCH} origin ${branch} 2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done 
+        ${REPO_CMD} ${CREATE_BRANCH} ${branch} origin/${branch} 2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done
+        ${REPO_CMD} ${CREATE_BRANCH} ${branch}-source ope-upstream/${branch} 2>&1  # | rolling_output #0<&0 #| while read line; do echo -ne "\033[2K\r"; printf "    ${Grey}$line${Color_Off}\r"; done    
+    done
+
+    ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[0]}  2>&1
+
 }
 
 function create
@@ -186,9 +234,11 @@ function create
                 break;
             fi
         done
-        ${REPO_CMD} ${INIT} # | rolling_output
+         # | rolling_output
         OPE_REPO_URL=$user_input
     fi
+
+    ${REPO_CMD} ${INIT}
 
     # Adding the remotes
     ${REPO_CMD} ${REMOTE_ADD} ope-upstream ${OPE_REPO_URL} # | rolling_output #0<&0
@@ -204,18 +254,29 @@ function create
 
     ${REPO_CMD} ${SWITCH_BRANCH} ${UPSTREAM_BRANCHES[0]}  2>&1  # # | rolling_output
     echo -ne "\033[2K\r"
-    printf "$HEADER${Cyan}Initilal Commit to ${name} repository.${Color_Off}\n"
-    mv ../$IGNORE_FILE .
-    mv ../$OPE_CONFIG_DIR .
-    ${REPO_CMD} ${ADD} . #2>&1 # | rolling_output
-    ${REPO_CMD} ${COMMIT} "Initial commit from the ope command line tool" 2>&1 ## | rolling_output
-    ${REPO_CMD} ${PUSH} 2>&1 ## | rolling_output
+    #printf "$HEADER${Cyan}Initilal Commit to ${name} repository.${Color_Off}\n"
+    #mv ../$IGNORE_FILE .
+    #mv ../$OPE_CONFIG_DIR .
+    #${REPO_CMD} ${ADD} . #2>&1 # | rolling_output
+    #${REPO_CMD} ${COMMIT} "Initial commit from the ope command line tool" 2>&1 ## | rolling_output
+    #${REPO_CMD} ${PUSH} 2>&1 ## | rolling_output
     printf "$HEADER${Green}OPE book organization has been successfully created ${Color_Off}\n"    
 }
 
 function update
-#DESCRIPTION: update the ope framework
+#DESCRIPTION: update and rebase changes from the OPE framework
 {
+    option=$1
+
+    if [[ ! -z "$option" && $option = '-h' ]]; then
+        echo "Usage:  ${0##*/} update [options]"
+        echo "   will update and rebase based on the current branch"
+        echo "   options:"
+        echo "       -u: update the OPE framework only and do not perform a rebase"
+        echo "   See the ope gettings started doc for more info."
+        return -1
+    fi
+
     verify_repo
     
     current_branch=$(${REPO_CMD} ${CURRENT_BRANCH})
@@ -223,6 +284,14 @@ function update
     ${REPO_CMD} ${SWITCH_BRANCH} ${current_branch}-source
     ${REPO_CMD} ${PULL} ope-upstream ${current_branch}
     ${REPO_CMD} ${SWITCH_BRANCH} ${current_branch}
+
+    if [[ $option = '-u' ]]; then
+        printf "$HEADER${Cyan}Updating the OPE framework only${Color_Off}\n"
+        printf "$HEADER${BGreen}OPE upstream ${current_branch}${Color_Off}${Green} has been successfully updated ${Color_Off}\n"
+        return
+    fi
+
+    printf "$HEADER${Cyan}Rebasing the book repository on ${Color_Off}${BCyan}${current_branch}${Color_Off}\n"
     ${REPO_CMD} ${REBASE} ${current_branch}-source
     printf "$HEADER${BGreen}${current_branch}${Color_Off}${Green} has been successfully updated ${Color_Off}\n"
 
@@ -232,6 +301,15 @@ function update
 function build
 #DESCRIPTION: build the book
 {
+    option=$1
+    
+    if [[ ! -z "$option" || $option = '-h' ]]; then
+        echo "Usage:  ${0##*/} build"
+        echo "   will build based on the current branch"
+        echo "   See the ope gettings started doc for more info."
+        return -1
+    fi
+
     verify_repo
     current_branch=$(${REPO_CMD} ${CURRENT_BRANCH})
     printf "$HEADER${Cyan}Building the on ${Color_Off}${BCyan}${current_branch}${Color_Off}\n"
@@ -241,7 +319,16 @@ function build
 
 function pub
 #DESCRIPTION: publish the book
-{
+{   
+    option=$1
+    
+    if [[ ! -z "$option" || $option = '-h' ]]; then
+        echo "Usage:  ${0##*/} pub"
+        echo "   will publish based on the current branch"
+        echo "   See the ope gettings started doc for more info."
+        return -1
+    fi
+
     verify_repo
     current_branch=$(${REPO_CMD} ${CURRENT_BRANCH})
     printf "$HEADER${Cyan}Publishing the on ${Color_Off}${BCyan}${current_branch}${Color_Off}\n"
