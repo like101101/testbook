@@ -14,13 +14,23 @@ The material is broken down in to three parts:
 3. Part 3
 
 ```{code-block} python
-:caption: Creating a TensorMesh using SimPEG
+:caption: Python Code Block
 :linenos:
 
 print("hello, world")
 print("hello, world")
 print("hello, world")
 print("hello, world")
+```
+
+```{code-block} c
+:caption: C Code Block
+:linenos:
+
+printf("Hello, world\n")
+printf("Hello, world\n")
+printf("Hello, world\n")
+printf("Hello, world\n")
 ```
 
 <!-- #endregion -->
