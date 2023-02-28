@@ -18,19 +18,20 @@ The material is broken down in to three parts:
 :linenos:
 
 print("hello, world")
-print("hello, world")
-print("hello, world")
-print("hello, world")
+
 ```
 
 ```{code-block} c
 :caption: C Code Block
 :linenos:
 
-printf("Hello, world\n")
-printf("Hello, world\n")
-printf("Hello, world\n")
-printf("Hello, world\n")
+#include <stdio.h>
+
+int main() {
+   printf("Hello, World!");
+   return 0;
+}
+
 ```
 
 <!-- #endregion -->
