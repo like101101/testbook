@@ -1,0 +1,29 @@
+<pre><code class="language-{code-block}">:caption: simple c code
+:linenos:
+
+#include &lt;sys/types.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int
+main(int argc, char* argv[]) 
+{
+  pid_t mypid, cpid, ppid;
+  cpid = fork();
+  ppid = getppid();
+  mypid = getpid();
+
+  if (cpid &gt; 0) {
+    /* Parent code */ 
+    printf(&quot;hello, from parent with pid %d, pid of child is %d\n&quot;, mypid, cpid);
+  } else if (cpid == 0) {
+    /* Child code */
+    printf(&quot;hello, I am child with pid %d, my parent is %d\n&quot;, mypid, ppid);
+  } else {
+    perror(&quot;fork failed\n&quot;);
+    exit(-1);
+  }
+  return 0;
+}
+</code></pre>
