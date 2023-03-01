@@ -1,3 +1,9 @@
+---
+exports:
+  - format: pdf
+---
+
+
 ```{code-block} c
 :caption: simple c code
 :linenos:
