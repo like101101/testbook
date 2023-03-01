@@ -14,24 +14,13 @@ The material is broken down in to three parts:
 3. Part 3
 
 ```{code-block} python
-:caption: Python Code Block
+:caption: simple python code block
 :linenos:
 
 print("hello, world")
-
-```
-
-```{code-block} c
-:caption: C Code Block
-:linenos:
-
-#include <stdio.h>
-
-int main() {
-   printf("Hello, World!");
-   return 0;
-}
-
+print("hello, world")
+print("hello, world")
+print("hello, world")
 ```
 
 <!-- #endregion -->
