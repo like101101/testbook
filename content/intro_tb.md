@@ -23,4 +23,14 @@ print("hello, world")
 print("hello, world")
 ```
 
+```{code-block} python
+:linenos:
+a = "This is some"
+b = "Python code!"
+print(f"{a} {b}")
+```
+
+```{tip}
+This is a tip.
+
 <!-- #endregion -->
